@@ -67,6 +67,17 @@ model Account {
   @@map("account")
 }
 
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@map("verification")
+}
+
 model Movie {
   id          Int        @id // We'll use the TMDB ID here
   title       String
