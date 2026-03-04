@@ -10,6 +10,18 @@ type CatalogItem = {
   genre: string;
 };
 
+type WatchStatus = "plan-to-watch" | "watching" | "watched";
+
+type ListItem = CatalogItem & {
+  status: WatchStatus;
+};
+
+const STATUS_OPTIONS: { value: WatchStatus; label: string }[] = [
+  { value: "plan-to-watch", label: "Plan to watch" },
+  { value: "watching", label: "Watching" },
+  { value: "watched", label: "Watched" },
+];
+
 const ADJECTIVES = [
   "Silent",
   "Neon",
@@ -85,7 +97,7 @@ const sampleCatalog: CatalogItem[] = createMockCatalog(1000);
 
 export default function MoviesPage() {
   const [query, setQuery] = useState("");
-  const [myList, setMyList] = useState<CatalogItem[]>([]);
+  const [myList, setMyList] = useState<ListItem[]>([]);
 
   const filteredCatalog = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -105,8 +117,18 @@ export default function MoviesPage() {
         return currentList;
       }
 
-      return [...currentList, item];
+      return [...currentList, { ...item, status: "plan-to-watch" }];
     });
+  };
+
+  const updateStatus = (itemId: number, status: WatchStatus) => {
+    setMyList((currentList) =>
+      currentList.map((item) => (item.id === itemId ? { ...item, status } : item)),
+    );
+  };
+
+  const removeFromList = (itemId: number) => {
+    setMyList((currentList) => currentList.filter((item) => item.id !== itemId));
   };
 
   return (
@@ -181,10 +203,35 @@ export default function MoviesPage() {
             <ul className="mt-4 space-y-3">
               {myList.map((item) => (
                 <li key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                  <p className="font-medium text-slate-900">{item.title}</p>
-                  <p className="text-xs text-slate-600">
-                    {item.type} • {item.year}
-                  </p>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium text-slate-900">{item.title}</p>
+                      <p className="text-xs text-slate-600">
+                        {item.type} • {item.year}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeFromList(item.id)}
+                      className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <label className="mt-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Status
+                  </label>
+                  <select
+                    value={item.status}
+                    onChange={(event) => updateStatus(item.id, event.target.value as WatchStatus)}
+                    className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 outline-none ring-slate-900/20 transition focus:ring"
+                  >
+                    {STATUS_OPTIONS.map((statusOption) => (
+                      <option key={statusOption.value} value={statusOption.value}>
+                        {statusOption.label}
+                      </option>
+                    ))}
+                  </select>
                 </li>
               ))}
             </ul>
