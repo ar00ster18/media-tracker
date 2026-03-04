@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { CatalogItem, sampleCatalog } from "@/lib/mock-catalog";
+import { authClient } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
 
 type WatchStatus = "plan-to-watch" | "watching" | "watched";
 
@@ -16,8 +18,16 @@ const STATUS_OPTIONS: { value: WatchStatus; label: string }[] = [
 ];
 
 export default function MoviesPage() {
+  const { data: session, isPending } = authClient.useSession();
   const [query, setQuery] = useState("");
   const [myList, setMyList] = useState<ListItem[]>([]);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isPending && !session) {
+      router.push("/sign-in?callbackURL=/movies");
+    }
+  }, [session, isPending, router]);
 
   const filteredCatalog = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -50,6 +60,14 @@ export default function MoviesPage() {
   const removeFromList = (itemId: number) => {
     setMyList((currentList) => currentList.filter((item) => item.id !== itemId));
   };
+
+  if (isPending || !session) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-900 border-t-transparent"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[2fr_1fr] px-6">

@@ -13,6 +13,8 @@ export default function SignInPage() {
     const [error, setError] = useState("");
     const router = useRouter();
 
+    const isDevelopment = process.env.NODE_ENV === "development";
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -60,6 +62,45 @@ export default function SignInPage() {
             });
         } catch (err) {
             setError(err instanceof Error ? err.message : "Google sign in failed.");
+            setLoading(false);
+        }
+    };
+
+    const handleDevBypass = async () => {
+        setLoading(true);
+        setError("");
+        const devEmail = "dev@example.com";
+        const devPassword = "Password123!";
+        const devName = "Dev User";
+
+        try {
+            // Try to sign in first
+            const { error: signInError } = await authClient.signIn.email({
+                email: devEmail,
+                password: devPassword,
+                callbackURL: "/movies",
+            });
+
+            // If user doesn't exist, sign them up
+            if (signInError) {
+                const { error: signUpError } = await authClient.signUp.email({
+                    email: devEmail,
+                    password: devPassword,
+                    name: devName,
+                    callbackURL: "/movies",
+                });
+
+                if (signUpError) {
+                    setError(`Dev bypass failed: ${signUpError.message}`);
+                } else {
+                    router.push("/movies");
+                }
+            } else {
+                router.push("/movies");
+            }
+        } catch {
+            setError("Dev bypass failed. Make sure your database is connected.");
+        } finally {
             setLoading(false);
         }
     };
@@ -157,6 +198,19 @@ export default function SignInPage() {
                     </svg>
                     Continue with Google
                 </button>
+
+                {isDevelopment && (
+                    <div className="mt-10 pt-6 border-t border-dashed border-slate-200 text-center">
+                        <p className="text-xs font-bold uppercase tracking-widest text-orange-500 mb-3">Development Only</p>
+                        <button
+                            onClick={handleDevBypass}
+                            disabled={loading}
+                            className="w-full rounded-lg border-2 border-orange-200 bg-orange-50 py-2.5 text-sm font-bold text-orange-700 transition hover:bg-orange-100 hover:border-orange-300 disabled:opacity-50"
+                        >
+                            {loading ? "Please wait..." : "Auto-login as Dev User"}
+                        </button>
+                    </div>
+                )}
 
                 <p className="mt-8 text-center text-sm text-slate-600">
                     {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
