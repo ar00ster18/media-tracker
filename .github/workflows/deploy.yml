@@ -2,8 +2,8 @@ name: Deploy to Cloudflare
 
 on:
   push:
-    branches: ["main", "cloudflare-migration"]
-  workflow_dispatch: # This adds a "Run workflow" button in the GitHub UI!
+    branches: ["main", "preview", "dev"] # Listens to all 3 branches!
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -16,10 +16,33 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm" # This caches your node_modules so future deploys are 2x faster
+          cache: "npm"
 
       - name: Install dependencies
         run: npm install
+
+      # 1. Dynamically name the project based on the GitHub branch
+      - name: Set Project Name
+        run: |
+          if [ "${{ github.ref_name }}" == "main" ]; then
+            echo "PROJECT_NAME=media-tracker" >> $GITHUB_ENV
+          else
+            echo "PROJECT_NAME=media-tracker-${{ github.ref_name }}" >> $GITHUB_ENV
+          fi
+
+      # 2. Generate the Cloudflare config file on the fly
+      - name: Create Cloudflare Config
+        run: |
+          echo '{
+            "name": "${{ env.PROJECT_NAME }}",
+            "main": ".open-next/worker.js",
+            "compatibility_date": "2024-12-30",
+            "compatibility_flags": ["nodejs_compat"],
+            "assets": {
+              "directory": ".open-next/assets",
+              "binding": "ASSETS"
+            }
+          }' > wrangler.jsonc
 
       - name: Build Next.js for Cloudflare
         run: npx @opennextjs/cloudflare build
