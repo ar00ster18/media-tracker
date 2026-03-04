@@ -2,6 +2,7 @@
 
 import { Navbar } from "@/components/Navbar";
 import { useEffect, useState } from "react";
+import { Spinner } from "@/components/ui/Spinner";
 
 export default function MainLayout({
   children,
@@ -17,10 +18,8 @@ export default function MainLayout({
 
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-slate-100">
-        <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-900 border-t-transparent"></div>
-        </div>
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <Spinner />
       </div>
     );
   }

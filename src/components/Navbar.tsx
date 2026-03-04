@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
+import { Button } from "./ui/Button";
+import { Spinner } from "./ui/Spinner";
 
 export function Navbar() {
   const { data: session, isPending } = authClient.useSession();
@@ -16,7 +18,7 @@ export function Navbar() {
 
   return (
     <nav className="bg-white border-b border-slate-200">
-      <div className="mx-auto max-w-6xl px-6 py-4 flex justify-between items-center">
+      <div className="mx-auto max-w-6xl px-6 py-5 flex justify-between items-center">
         <Link href="/" className="text-xl font-bold text-slate-900 flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-white text-xs">
             MT
@@ -31,25 +33,27 @@ export function Navbar() {
           
           <div className="h-4 w-px bg-slate-200" />
           
-          <div>
+          <div className="flex items-center">
             {isPending ? (
-              <div className="h-8 w-20 animate-pulse rounded-lg bg-slate-100"></div>
+              <Spinner className="h-5 w-5" />
             ) : session ? (
               <div className="flex items-center gap-4">
                 <span className="text-sm font-medium text-slate-700 hidden md:inline">
                   Hello, {session.user.name}
                 </span>
-                <button
+                <Button
+                  variant="outline"
+                  size="md"
                   onClick={handleLogout}
-                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                  className="w-auto"
                 >
                   Sign Out
-                </button>
+                </Button>
               </div>
             ) : (
               <Link
                 href="/sign-in"
-                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+                className="rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
               >
                 Sign In
               </Link>
