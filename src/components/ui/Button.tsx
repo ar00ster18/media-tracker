@@ -17,7 +17,7 @@ export function Button({
   disabled,
   ...props 
 }: ButtonProps) {
-  const baseStyles = "rounded-lg font-semibold transition disabled:cursor-not-allowed flex items-center justify-center gap-2 leading-none";
+  const baseStyles = "rounded-lg font-semibold transition disabled:cursor-not-allowed flex items-center justify-center leading-none";
   
   const variants = {
     primary: "bg-slate-900 text-white hover:bg-slate-700 disabled:bg-slate-300",
@@ -44,7 +44,9 @@ export function Button({
       {isLoading ? (
         "Please wait..."
       ) : (
-        <span className="translate-y-[1px]">{children}</span>
+        <span className="flex items-center justify-center gap-2 translate-y-[1px]">
+          {children}
+        </span>
       )}
     </button>
   );
