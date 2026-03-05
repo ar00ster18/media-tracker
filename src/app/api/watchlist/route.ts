@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import prisma from "@/lib/prisma";
 import { headers } from "next/headers";
+import { WatchStatus } from "@prisma/client";
 
 interface ExternalRatingInput {
   source: string;
@@ -43,10 +44,17 @@ export async function GET() {
           }
         }
       },
-      orderBy: { watchedAt: "desc" }
+      orderBy: { updatedAt: "desc" }
     });
 
-    return NextResponse.json(watchLogs);
+    // Transform status to client-friendly format if needed, but our client already handles "plan-to-watch" etc.
+    // Our DB has PLAN_TO_WATCH, WATCHING, WATCHED.
+    const transformedLogs = watchLogs.map(log => ({
+      ...log,
+      status: log.status.toLowerCase().replace(/_/g, '-')
+    }));
+
+    return NextResponse.json(transformedLogs);
   } catch (error) {
     console.error("Failed to fetch watchlist:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
@@ -75,14 +83,14 @@ export async function POST(request: NextRequest) {
       where: { id: mediaItem.id },
       update: {
         title: mediaItem.title,
-        type: mediaItem.type.toLowerCase() === "movie" ? "MOVIE" : "TV",
+        type: mediaItem.type.toLowerCase() === "movie" ? "movie" : "tv",
         posterPath: mediaItem.poster_path,
         year: parsedYear,
       },
       create: {
         id: mediaItem.id,
         title: mediaItem.title,
-        type: mediaItem.type.toLowerCase() === "movie" ? "MOVIE" : "TV",
+        type: mediaItem.type.toLowerCase() === "movie" ? "movie" : "tv",
         posterPath: mediaItem.poster_path,
         year: parsedYear,
       }
@@ -109,6 +117,14 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Create or Update WatchLog
+    const statusMap: Record<string, WatchStatus> = {
+      "plan-to-watch": WatchStatus.PLAN_TO_WATCH,
+      "watching": WatchStatus.WATCHING,
+      "watched": WatchStatus.WATCHED
+    };
+    
+    const dbStatus = status && statusMap[status.toLowerCase()] ? statusMap[status.toLowerCase()] : WatchStatus.PLAN_TO_WATCH;
+
     const watchLog = await prisma.watchLog.upsert({
       where: {
         userId_mediaId: {
@@ -117,14 +133,14 @@ export async function POST(request: NextRequest) {
         }
       },
       update: {
-        status: status ? status.toUpperCase().replace(/-/g, '_') : "PLAN_TO_WATCH",
+        status: dbStatus,
         rating: rating !== undefined ? rating : undefined,
         notes: notes || undefined,
       },
       create: {
         userId: session.user.id,
         mediaId: dbMedia.id,
-        status: status ? status.toUpperCase().replace(/-/g, '_') : "PLAN_TO_WATCH",
+        status: dbStatus,
         rating: rating !== undefined ? rating : null,
         notes: notes || null,
       }

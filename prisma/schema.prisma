@@ -27,8 +27,15 @@ model User {
   following     Follows[] @relation("following")
   followers     Follows[] @relation("follower")
   watchLogs     WatchLog[]
+  listItems     UserListItem[]
 
   @@map("user")
+}
+
+enum WatchStatus {
+  PLAN_TO_WATCH
+  WATCHING
+  WATCHED
 }
 
 model Session {
@@ -83,6 +90,7 @@ model MediaItem {
   year        Int?
   logs        WatchLog[]
   ratings     Rating[]
+  listItems   UserListItem[]
 }
 
 model Rating {
@@ -101,8 +109,8 @@ model WatchLog {
   userId    String
   mediaItem MediaItem @relation(fields: [mediaId], references: [id], onDelete: Cascade)
   mediaId   Int
-  status    String   @default("plan-to-watch") // "plan-to-watch", "watching", "watched"
-  rating    Int?     // User rating: 1-10 or 1-5
+  status    WatchStatus @default(WATCHED)
+  rating    Float?   // User rating: 1-5 or 1-10
   notes     String?  // Short text reaction/notes
   watchedAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -119,4 +127,18 @@ model Follows {
   followingId String
 
   @@id([followerId, followingId])
+}
+
+model UserListItem {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaItem MediaItem   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  mediaId   Int
+  status    WatchStatus @default(PLAN_TO_WATCH)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([userId, mediaId])
+  @@index([userId])
 }
