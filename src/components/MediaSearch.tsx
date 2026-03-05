@@ -5,6 +5,7 @@ import { TMDBMovie, TMDBTVShow, TMDBResponse, getTMDBImageUrl, ExternalRating } 
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
+import Image from "next/image";
 
 type MediaType = "movie" | "tv";
 
@@ -142,9 +143,11 @@ export function MediaSearch({ type, onAddToMyList, isInMyList }: MediaSearchProp
                 >
                   <div className="flex items-center gap-4">
                     {posterUrl ? (
-                      <img 
+                      <Image 
                         src={posterUrl} 
                         alt={title} 
+                        width={56}
+                        height={80}
                         className="h-20 w-14 rounded-md object-cover shadow-sm"
                       />
                     ) : (
