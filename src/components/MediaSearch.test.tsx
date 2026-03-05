@@ -26,7 +26,7 @@ describe("MediaSearch", () => {
       expect(screen.getByText("Popular Movie")).toBeDefined();
     });
     
-    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("/api/tmdb?type=movie"));
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("/api/media?type=movie"));
   });
 
   it("searches for movies when query changes", async () => {

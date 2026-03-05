@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { TMDBMovie, TMDBTVShow, TMDBResponse, getTMDBImageUrl } from "@/lib/tmdb";
+import { TMDBMovie, TMDBTVShow, TMDBResponse, getTMDBImageUrl, ExternalRating } from "@/lib/media";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
@@ -14,6 +14,7 @@ export interface MediaItem {
   year: number | string;
   type: "Movie" | "TV Show";
   poster_path: string | null;
+  ratings?: ExternalRating[];
 }
 
 interface MediaSearchProps {
@@ -32,7 +33,7 @@ export function MediaSearch({ type, onAddToMyList, isInMyList }: MediaSearchProp
     setIsLoading(true);
     setError(null);
     try {
-      const url = new URL("/api/tmdb", typeof window !== "undefined" ? window.location.origin : "");
+      const url = new URL("/api/media", typeof window !== "undefined" ? window.location.origin : "");
       url.searchParams.set("type", type);
       if (searchQuery) {
         url.searchParams.set("query", searchQuery);
@@ -41,25 +42,47 @@ export function MediaSearch({ type, onAddToMyList, isInMyList }: MediaSearchProp
       const response = await fetch(url.toString());
       if (!response.ok) throw new Error("Failed to fetch");
 
+      let items: MediaItem[] = [];
       if (type === "movie") {
         const data = await response.json() as TMDBResponse<TMDBMovie>;
-        setResults(data.results.slice(0, 10).map(item => ({
+        items = data.results.slice(0, 10).map(item => ({
           id: item.id,
           title: item.title,
           year: item.release_date ? new Date(item.release_date).getFullYear() : "N/A",
           type: "Movie",
           poster_path: item.poster_path
-        })));
+        }));
       } else {
         const data = await response.json() as TMDBResponse<TMDBTVShow>;
-        setResults(data.results.slice(0, 10).map(item => ({
+        items = data.results.slice(0, 10).map(item => ({
           id: item.id,
           title: item.name,
           year: item.first_air_date ? new Date(item.first_air_date).getFullYear() : "N/A",
           type: "TV Show",
           poster_path: item.poster_path
-        })));
+        }));
       }
+
+      setResults(items);
+
+      // Fetch ratings for each item in background
+      items.forEach(async (item) => {
+        try {
+          const ratingsUrl = new URL("/api/media", window.location.origin);
+          ratingsUrl.searchParams.set("action", "ratings");
+          ratingsUrl.searchParams.set("type", type);
+          ratingsUrl.searchParams.set("id", item.id.toString());
+          
+          const ratingsRes = await fetch(ratingsUrl.toString());
+          if (ratingsRes.ok) {
+            const ratings = await ratingsRes.json() as ExternalRating[];
+            setResults(prev => prev.map(p => p.id === item.id ? { ...p, ratings } : p));
+          }
+        } catch (err) {
+          console.error("Failed to fetch ratings for", item.title, err);
+        }
+      });
+
     } catch (err) {
       setError("An error occurred while fetching media.");
       console.error(err);
@@ -108,7 +131,7 @@ export function MediaSearch({ type, onAddToMyList, isInMyList }: MediaSearchProp
         ) : (
           <ul className="grid gap-3">
             {results.map((item) => {
-              const { id, title, year, poster_path, type: itemType } = item;
+              const { id, title, year, poster_path, type: itemType, ratings } = item;
               const posterUrl = getTMDBImageUrl(poster_path, "w154");
               const added = isInMyList(id);
 
@@ -134,6 +157,15 @@ export function MediaSearch({ type, onAddToMyList, isInMyList }: MediaSearchProp
                       <p className="text-sm text-slate-600">
                         {year} • {itemType}
                       </p>
+                      {ratings && ratings.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-2">
+                          {ratings.map(r => (
+                            <span key={r.source} className="inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 border border-slate-200">
+                              {r.source}: {r.value}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <Button

@@ -1,5 +1,5 @@
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, Mock } from "vitest";
 import TVShowsPage from "./page";
 import { authClient } from "@/lib/auth-client";
 import { MediaItem } from "@/components/MediaSearch";
@@ -19,7 +19,7 @@ interface MediaSearchProps {
 vi.mock("@/components/MediaSearch", () => ({
   MediaSearch: ({ onAddToMyList }: MediaSearchProps) => (
     <div>
-      <button onClick={() => onAddToMyList({ id: 1, title: "Neon Show", year: 2024, type: "TV Show" })}>
+      <button onClick={() => onAddToMyList({ id: 1, title: "Neon Show", year: 2024, type: "TV Show", poster_path: null })}>
         Add Neon Show
       </button>
     </div>
@@ -29,6 +29,13 @@ vi.mock("@/components/MediaSearch", () => ({
 describe("TVShowsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    global.fetch = vi.fn();
+    
+    // Default fetch mock for watchlist
+    (global.fetch as Mock).mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    });
   });
 
   it("returns null for guest users", () => {
@@ -41,28 +48,37 @@ describe("TVShowsPage", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("renders the TV shows page and adds/removes shows", () => {
+  it("renders the TV shows page and adds/removes shows", async () => {
     vi.mocked(authClient.useSession).mockReturnValue({
       data: {
-        user: { name: "Jane Doe" },
+        user: { id: "user-1", name: "Jane Doe" },
       },
       isPending: false,
     } as unknown as ReturnType<typeof authClient.useSession>);
 
     render(<TVShowsPage />);
     
+    // Wait for initial load to finish (spinner gone)
+    await waitFor(() => {
+      expect(screen.queryByRole("status")).toBeNull();
+    });
+
     // Add a show via the mocked MediaSearch
     const addButton = screen.getByRole("button", { name: /Add Neon Show/i });
     fireEvent.click(addButton);
 
     // Check if it appears in "My List"
-    expect(screen.getByText("Neon Show")).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByText("Neon Show")).toBeDefined();
+    });
     
     // Remove it
     const removeButton = screen.getByRole("button", { name: /remove/i });
     fireEvent.click(removeButton);
 
     // Check if list is empty again
-    expect(screen.getByText(/your list is empty/i)).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByText(/your list is empty/i)).toBeDefined();
+    });
   });
 });

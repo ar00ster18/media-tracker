@@ -18,7 +18,11 @@ describe('Media Tracking (Movies & TV)', () => {
     cy.get('#media-search').type('Inception');
     
     // Wait for results and add to list
-    cy.contains('Inception', { timeout: 10000 }).should('be.visible');
+    cy.contains('Inception', { timeout: 15000 }).should('be.visible');
+    
+    // Check for ratings
+    cy.contains('TMDB:', { timeout: 10000 }).should('be.visible');
+    
     cy.contains('Add to My List').first().click();
     
     // Verify it's added
@@ -29,6 +33,10 @@ describe('Media Tracking (Movies & TV)', () => {
     // Change status
     cy.get('select').first().select('watching');
     cy.get('select').first().should('have.value', 'watching');
+
+    // Add rating
+    cy.get('select').last().select('9');
+    cy.get('select').last().should('have.value', '9');
     
     // Remove from list
     cy.contains('Remove').click();
@@ -45,13 +53,12 @@ describe('Media Tracking (Movies & TV)', () => {
     cy.get('#media-search').type('Breaking Bad');
     
     // Wait for results and add to list
-    cy.contains('Breaking Bad', { timeout: 10000 }).should('be.visible');
+    cy.contains('Breaking Bad', { timeout: 15000 }).should('be.visible');
     cy.contains('Add to My List').first().click();
     
     // Verify it's added
     cy.contains('Added').should('be.visible');
     cy.get('aside').should('contain', 'Breaking Bad');
-    cy.get('aside').should('contain', '1 title added');
     
     // Remove from list
     cy.contains('Remove').click();

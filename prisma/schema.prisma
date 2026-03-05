@@ -1,15 +1,13 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider        = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -29,7 +27,7 @@ model User {
   accounts      Account[]
   following     Follows[] @relation("following")
   followers     Follows[] @relation("follower")
-  watchedMovies WatchLog[]
+  watchLogs     WatchLog[]
 
   @@map("user")
 }
@@ -78,25 +76,41 @@ model Verification {
   @@map("verification")
 }
 
-model Movie {
-  id          Int        @id // We'll use the TMDB ID here
+model MediaItem {
+  id          Int        @id // TMDB ID
   title       String
+  type        String     // "movie" or "tv"
   posterPath  String?
+  year        Int?
   logs        WatchLog[]
+  ratings     Rating[]
+}
+
+model Rating {
+  id          String    @id @default(cuid())
+  source      String    // "IMDB", "Rotten Tomatoes", "TMDB"
+  value       String    // e.g., "8.5", "92%"
+  mediaItem   MediaItem @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  mediaId     Int
+
+  @@unique([mediaId, source])
 }
 
 model WatchLog {
   id        String   @id @default(cuid())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
-  movie     Movie    @relation(fields: [movieId], references: [id])
-  movieId   Int
-  rating    Float?   // 1-5 stars
-  vibe      String?  // Short text reaction
+  mediaItem MediaItem @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  mediaId   Int
+  status    String   @default("plan-to-watch") // "plan-to-watch", "watching", "watched"
+  rating    Int?     // User rating: 1-10 or 1-5
+  notes     String?  // Short text reaction/notes
   watchedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  @@unique([userId, mediaId])
   @@index([userId])
-  @@index([movieId])
+  @@index([mediaId])
 }
 
 model Follows {
