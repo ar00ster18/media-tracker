@@ -26,6 +26,10 @@ export function Navbar() {
           <Link href="/tv" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition">
             TV Shows
           </Link>
+
+          <Link href="/stats" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition">
+            Stats
+          </Link>
           
           <div className="h-4 w-px bg-slate-200" />
           

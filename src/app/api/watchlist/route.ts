@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { headers } from "next/headers";
 import { WatchStatus } from "@prisma/client";
+import { fetchTMDB } from "@/lib/media";
 
 interface ExternalRatingInput {
   source: string;
@@ -79,20 +80,32 @@ export async function POST(request: NextRequest) {
       : (mediaItem.year ? parseInt(String(mediaItem.year), 10) : null);
 
     // 1. Ensure MediaItem exists in our DB
+    const mediaType = mediaItem.type.toLowerCase() === "movie" ? "movie" : "tv";
+
+    let genres: string[] = [];
+    try {
+      const detail = await fetchTMDB<{ genres: { id: number; name: string }[] }>(`/${mediaType}/${mediaItem.id}`);
+      genres = detail.genres.map((g) => g.name);
+    } catch {
+      // genres stays empty — non-fatal
+    }
+
     const dbMedia = await prisma.mediaItem.upsert({
       where: { id: mediaItem.id },
       update: {
         title: mediaItem.title,
-        type: mediaItem.type.toLowerCase() === "movie" ? "movie" : "tv",
+        type: mediaType,
         posterPath: mediaItem.poster_path,
         year: parsedYear,
+        genres,
       },
       create: {
         id: mediaItem.id,
         title: mediaItem.title,
-        type: mediaItem.type.toLowerCase() === "movie" ? "movie" : "tv",
+        type: mediaType,
         posterPath: mediaItem.poster_path,
         year: parsedYear,
+        genres,
       }
     });
 

@@ -88,6 +88,7 @@ model MediaItem {
   type        String     // "movie" or "tv"
   posterPath  String?
   year        Int?
+  genres      String[]   @default([])
   logs        WatchLog[]
   ratings     Rating[]
   listItems   UserListItem[]
