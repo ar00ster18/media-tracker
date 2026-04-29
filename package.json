@@ -15,7 +15,8 @@
     "cypress:run": "cypress run",
     "full-test": "npm run lint && npm run type-check && npm run test",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@better-auth/prisma-adapter": "^1.5.3",
