@@ -1,0 +1,145 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  emailVerified Boolean
+  image         String?
+  createdAt     DateTime
+  updatedAt     DateTime
+  
+  // Custom Media Tracker Fields
+  username      String?   @unique // Made optional for OAuth registration
+  
+  // Relations
+  sessions      Session[]
+  accounts      Account[]
+  following     Follows[] @relation("following")
+  followers     Follows[] @relation("follower")
+  watchLogs     WatchLog[]
+  listItems     UserListItem[]
+
+  @@map("user")
+}
+
+enum WatchStatus {
+  PLAN_TO_WATCH
+  WATCHING
+  WATCHED
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime
+  updatedAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime
+  updatedAt             DateTime
+
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@map("verification")
+}
+
+model MediaItem {
+  id          Int        @id // TMDB ID
+  title       String
+  type        String     // "movie" or "tv"
+  posterPath  String?
+  year        Int?
+  genres      String[]   @default([])
+  logs        WatchLog[]
+  ratings     Rating[]
+  listItems   UserListItem[]
+}
+
+model Rating {
+  id          String    @id @default(cuid())
+  source      String    // "IMDB", "Rotten Tomatoes", "TMDB"
+  value       String    // e.g., "8.5", "92%"
+  mediaItem   MediaItem @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  mediaId     Int
+
+  @@unique([mediaId, source])
+}
+
+model WatchLog {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  mediaItem MediaItem @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  mediaId   Int
+  status    WatchStatus @default(WATCHED)
+  rating    Float?   // User rating: 1-5 or 1-10
+  notes     String?  // Short text reaction/notes
+  watchedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, mediaId])
+  @@index([userId])
+  @@index([mediaId])
+}
+
+model Follows {
+  follower    User   @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followerId  String
+  following   User   @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+  followingId String
+
+  @@id([followerId, followingId])
+}
+
+model UserListItem {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaItem MediaItem   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  mediaId   Int
+  status    WatchStatus @default(PLAN_TO_WATCH)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([userId, mediaId])
+  @@index([userId])
+}
