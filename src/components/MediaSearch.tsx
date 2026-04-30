@@ -4,10 +4,12 @@ import { useEffect, useState, useCallback } from "react";
 import { TMDBMovie, TMDBTVShow, TMDBResponse, getTMDBImageUrl, ExternalRating } from "@/lib/media";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Select";
 import { Spinner } from "@/components/ui/Spinner";
 import Image from "next/image";
 
 type MediaType = "movie" | "tv";
+type WatchStatus = "plan-to-watch" | "watching" | "watched";
 
 export interface MediaItem {
   id: number;
@@ -20,9 +22,23 @@ export interface MediaItem {
 
 interface MediaSearchProps {
   type: MediaType;
-  onAddToMyList: (item: MediaItem) => void;
+  onAddToMyList: (item: MediaItem, status: WatchStatus, rating: number) => void;
   isInMyList: (id: number) => boolean;
 }
+
+const STATUS_OPTIONS: { value: WatchStatus; label: string }[] = [
+  { value: "plan-to-watch", label: "Plan to Watch" },
+  { value: "watching", label: "Watching" },
+  { value: "watched", label: "Watched" },
+];
+
+const RATING_OPTIONS = [
+  { value: "0", label: "No rating" },
+  ...Array.from({ length: 10 }, (_, i) => ({
+    value: (i + 1).toString(),
+    label: (i + 1).toString(),
+  })),
+];
 
 export function MediaSearch({ type, onAddToMyList, isInMyList }: MediaSearchProps) {
   const [query, setQuery] = useState("");
@@ -32,6 +48,22 @@ export function MediaSearch({ type, onAddToMyList, isInMyList }: MediaSearchProp
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+
+  const [pendingItem, setPendingItem] = useState<MediaItem | null>(null);
+  const [pendingStatus, setPendingStatus] = useState<WatchStatus>("plan-to-watch");
+  const [pendingRating, setPendingRating] = useState(0);
+
+  const openModal = (item: MediaItem) => {
+    setPendingStatus("plan-to-watch");
+    setPendingRating(0);
+    setPendingItem(item);
+  };
+
+  const confirmAdd = () => {
+    if (!pendingItem) return;
+    onAddToMyList(pendingItem, pendingStatus, pendingRating);
+    setPendingItem(null);
+  };
 
   const fetchRatings = useCallback((items: MediaItem[]) => {
     items.forEach(async (item) => {
@@ -106,103 +138,146 @@ export function MediaSearch({ type, onAddToMyList, isInMyList }: MediaSearchProp
   };
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h1 className="text-3xl font-semibold text-slate-900 capitalize">
-        {type === "movie" ? "Movies" : "TV Shows"}
-      </h1>
-      <p className="mt-2 text-slate-600">
-        Search {type === "movie" ? "movies" : "TV shows"} and add what you are currently consuming.
-      </p>
+    <>
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h1 className="text-3xl font-semibold text-slate-900 capitalize">
+          {type === "movie" ? "Movies" : "TV Shows"}
+        </h1>
+        <p className="mt-2 text-slate-600">
+          Search {type === "movie" ? "movies" : "TV shows"} and add what you are currently consuming.
+        </p>
 
-      <div className="mt-6">
-        <Input
-          label={`Search ${type === "movie" ? "movies" : "TV shows"}`}
-          id="media-search"
-          type="text"
-          sizeVariant="lg"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder={type === "movie" ? "Try: Inception, Dune..." : "Try: Breaking Bad, Succession..."}
-        />
-      </div>
+        <div className="mt-6">
+          <Input
+            label={`Search ${type === "movie" ? "movies" : "TV shows"}`}
+            id="media-search"
+            type="text"
+            sizeVariant="lg"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={type === "movie" ? "Try: Inception, Dune..." : "Try: Breaking Bad, Succession..."}
+          />
+        </div>
 
-      <div className="mt-6 max-h-[34rem] overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/40 p-3">
-        {isLoading ? (
-          <div className="flex justify-center p-8">
-            <Spinner />
-          </div>
-        ) : error ? (
-          <p className="p-4 text-center text-red-500">{error}</p>
-        ) : (
-          <ul className="grid gap-3">
-            {results.map((item) => {
-              const { id, title, year, poster_path, type: itemType, ratings } = item;
-              const posterUrl = getTMDBImageUrl(poster_path, "w154");
-              const added = isInMyList(id);
+        <div className="mt-6 max-h-[34rem] overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/40 p-3">
+          {isLoading ? (
+            <div className="flex justify-center p-8">
+              <Spinner />
+            </div>
+          ) : error ? (
+            <p className="p-4 text-center text-red-500">{error}</p>
+          ) : (
+            <ul className="grid gap-3">
+              {results.map((item) => {
+                const { id, title, year, poster_path, type: itemType, ratings } = item;
+                const posterUrl = getTMDBImageUrl(poster_path, "w154");
+                const added = isInMyList(id);
 
-              return (
-                <li
-                  key={id}
-                  className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center"
-                >
-                  <div className="flex items-center gap-4">
-                    {posterUrl ? (
-                      <Image 
-                        src={posterUrl} 
-                        alt={title} 
-                        width={56}
-                        height={80}
-                        className="h-20 w-14 rounded-md object-cover shadow-sm"
-                      />
-                    ) : (
-                      <div className="h-20 w-14 rounded-md bg-slate-200 flex items-center justify-center text-[10px] text-slate-500">
-                        No Image
-                      </div>
-                    )}
-                    <div>
-                      <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-                      <p className="text-sm text-slate-600">
-                        {year} • {itemType}
-                      </p>
-                      {ratings && ratings.length > 0 && (
-                        <div className="mt-1 flex flex-wrap gap-2">
-                          {ratings.map(r => (
-                            <span key={r.source} className="inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 border border-slate-200">
-                              {r.source}: {r.value}
-                            </span>
-                          ))}
+                return (
+                  <li
+                    key={id}
+                    className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center"
+                  >
+                    <div className="flex items-center gap-4">
+                      {posterUrl ? (
+                        <Image
+                          src={posterUrl}
+                          alt={title}
+                          width={56}
+                          height={80}
+                          className="h-20 w-14 rounded-md object-cover shadow-sm"
+                        />
+                      ) : (
+                        <div className="h-20 w-14 rounded-md bg-slate-200 flex items-center justify-center text-[10px] text-slate-500">
+                          No Image
                         </div>
                       )}
+                      <div>
+                        <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+                        <p className="text-sm text-slate-600">
+                          {year} • {itemType}
+                        </p>
+                        {ratings && ratings.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-2">
+                            {ratings.map(r => (
+                              <span key={r.source} className="inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 border border-slate-200">
+                                {r.source}: {r.value}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <Button
-                    size="md"
-                    onClick={() => onAddToMyList(item)}
-                    disabled={added}
-                    className="w-auto px-6"
-                  >
-                    {added ? "Added" : "Add to My List"}
-                  </Button>
-                </li>
-              );
-            })}
-          </ul>
+                    <Button
+                      size="md"
+                      onClick={() => openModal(item)}
+                      disabled={added}
+                      className="w-auto px-6"
+                    >
+                      {added ? "Added" : "Add to My List"}
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        {!isLoading && results.length === 0 && (
+          <p className="mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            No matches found for your search.
+          </p>
         )}
-      </div>
 
-      {!isLoading && results.length === 0 && (
-        <p className="mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-          No matches found for your search.
-        </p>
-      )}
+        {!isLoading && results.length > 0 && page < totalPages && (
+          <div className="mt-4 flex justify-center">
+            <Button variant="outline" onClick={handleLoadMore} disabled={isLoadingMore}>
+              {isLoadingMore ? <Spinner className="h-4 w-4" /> : "Load more"}
+            </Button>
+          </div>
+        )}
+      </section>
 
-      {!isLoading && results.length > 0 && page < totalPages && (
-        <div className="mt-4 flex justify-center">
-          <Button variant="outline" onClick={handleLoadMore} disabled={isLoadingMore}>
-            {isLoadingMore ? <Spinner className="h-4 w-4" /> : "Load more"}
-          </Button>
+      {pendingItem && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => setPendingItem(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-slate-900">{pendingItem.title}</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              {pendingItem.year} • {pendingItem.type}
+            </p>
+
+            <div className="mt-5 space-y-3">
+              <Select
+                label="Status"
+                value={pendingStatus}
+                onChange={(e) => setPendingStatus(e.target.value as WatchStatus)}
+                options={STATUS_OPTIONS}
+              />
+              <Select
+                label="Your Rating"
+                value={pendingRating.toString()}
+                onChange={(e) => setPendingRating(parseInt(e.target.value, 10))}
+                options={RATING_OPTIONS}
+              />
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <Button variant="outline" onClick={() => setPendingItem(null)} fullWidth>
+                Cancel
+              </Button>
+              <Button onClick={confirmAdd} fullWidth>
+                Add to List
+              </Button>
+            </div>
+          </div>
         </div>
       )}
-    </section>
+    </>
   );
 }

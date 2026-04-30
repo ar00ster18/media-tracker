@@ -1,10 +1,13 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { MediaItem } from "@/components/MediaSearch";
 
 type WatchStatus = "plan-to-watch" | "watching" | "watched";
+type FilterStatus = "all" | WatchStatus;
+type SortOption = "recent" | "a-z" | "z-a";
 
 export type ListItem = MediaItem & {
   status: WatchStatus;
@@ -32,7 +35,29 @@ interface WatchlistAsideProps {
   type: "Movie" | "TV Show";
 }
 
+const FILTER_OPTIONS: { value: FilterStatus; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "plan-to-watch", label: "Plan to Watch" },
+  { value: "watching", label: "Watching" },
+  { value: "watched", label: "Watched" },
+];
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: "recent", label: "Recently Added" },
+  { value: "a-z", label: "A → Z" },
+  { value: "z-a", label: "Z → A" },
+];
+
 export function WatchlistAside({ myList, setMyList, isInitialLoading, type }: WatchlistAsideProps) {
+  const [filter, setFilter] = useState<FilterStatus>("all");
+  const [sort, setSort] = useState<SortOption>("recent");
+
+  const displayedList = useMemo(() => {
+    let list = filter === "all" ? myList : myList.filter(item => item.status === filter);
+    if (sort === "a-z") list = [...list].sort((a, b) => a.title.localeCompare(b.title));
+    if (sort === "z-a") list = [...list].sort((a, b) => b.title.localeCompare(a.title));
+    return list;
+  }, [myList, filter, sort]);
   const syncWithDatabase = async (item: ListItem) => {
     try {
       await fetch("/api/watchlist", {
@@ -94,6 +119,33 @@ export function WatchlistAside({ myList, setMyList, isInitialLoading, type }: Wa
         {myList.length} {myList.length === 1 ? "title" : "titles"} added
       </p>
 
+      {!isInitialLoading && myList.length > 0 && (
+        <div className="mt-4 space-y-3">
+          <div className="flex flex-wrap gap-1.5">
+            {FILTER_OPTIONS.map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => setFilter(value)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                  filter === value
+                    ? "bg-slate-900 text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <Select
+            label="Sort"
+            sizeVariant="sm"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortOption)}
+            options={SORT_OPTIONS}
+          />
+        </div>
+      )}
+
       {isInitialLoading ? (
         <div className="mt-8 flex justify-center">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900" />
@@ -102,9 +154,13 @@ export function WatchlistAside({ myList, setMyList, isInitialLoading, type }: Wa
         <p className="mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
           Your list is empty. Add a {type.toLowerCase()} from the catalog.
         </p>
+      ) : displayedList.length === 0 ? (
+        <p className="mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          No {type.toLowerCase()}s match this filter.
+        </p>
       ) : (
         <ul className="mt-4 space-y-4">
-          {myList.map((item) => (
+          {displayedList.map((item) => (
             <li key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">

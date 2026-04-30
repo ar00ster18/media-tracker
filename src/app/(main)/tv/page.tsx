@@ -53,13 +53,12 @@ export default function TVShowsPage() {
     }
   }, [session, fetchWatchlist]);
 
-  const addToList = async (item: MediaItem) => {
+  const addToList = async (item: MediaItem, status: string, rating: number) => {
     if (myList.some((currentItem) => currentItem.id === item.id)) return;
 
-    const newItem: ListItem = { ...item, status: "plan-to-watch", userRating: 0 };
+    const newItem: ListItem = { ...item, status: status as ListItem["status"], userRating: rating };
     setMyList((currentList) => [...currentList, newItem]);
-    
-    // Initial sync
+
     try {
       await fetch("/api/watchlist", {
         method: "POST",
@@ -74,7 +73,7 @@ export default function TVShowsPage() {
             ratings: newItem.ratings
           },
           status: newItem.status,
-          rating: null
+          rating: rating > 0 ? rating : null
         })
       });
     } catch (error) {
