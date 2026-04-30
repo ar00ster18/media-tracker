@@ -28,78 +28,82 @@ export function MediaSearch({ type, onAddToMyList, isInMyList }: MediaSearchProp
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<MediaItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  const fetchMedia = useCallback(async (searchQuery: string) => {
-    setIsLoading(true);
+  const fetchRatings = useCallback((items: MediaItem[]) => {
+    items.forEach(async (item) => {
+      try {
+        const params = new URLSearchParams({ action: "ratings", type, id: item.id.toString() });
+        const res = await fetch(`/api/media?${params}`);
+        if (res.ok) {
+          const ratings = await res.json() as ExternalRating[];
+          setResults(prev => prev.map(p => p.id === item.id ? { ...p, ratings } : p));
+        }
+      } catch (err) {
+        console.error("Failed to fetch ratings for", item.title, err);
+      }
+    });
+  }, [type]);
+
+  const fetchMedia = useCallback(async (searchQuery: string, pageNum: number, append: boolean) => {
+    append ? setIsLoadingMore(true) : setIsLoading(true);
     setError(null);
     try {
-      const url = new URL("/api/media", typeof window !== "undefined" ? window.location.origin : "");
-      url.searchParams.set("type", type);
-      if (searchQuery) {
-        url.searchParams.set("query", searchQuery);
-      }
+      const params = new URLSearchParams({ type, page: pageNum.toString() });
+      if (searchQuery) params.set("query", searchQuery);
 
-      const response = await fetch(url.toString());
+      const response = await fetch(`/api/media?${params}`);
       if (!response.ok) throw new Error("Failed to fetch");
 
-      let items: MediaItem[] = [];
+      let newItems: MediaItem[] = [];
       if (type === "movie") {
         const data = await response.json() as TMDBResponse<TMDBMovie>;
-        items = data.results.slice(0, 10).map(item => ({
+        setTotalPages(data.total_pages);
+        newItems = data.results.map(item => ({
           id: item.id,
           title: item.title,
           year: item.release_date ? new Date(item.release_date).getFullYear() : "N/A",
-          type: "Movie",
-          poster_path: item.poster_path
+          type: "Movie" as const,
+          poster_path: item.poster_path,
         }));
       } else {
         const data = await response.json() as TMDBResponse<TMDBTVShow>;
-        items = data.results.slice(0, 10).map(item => ({
+        setTotalPages(data.total_pages);
+        newItems = data.results.map(item => ({
           id: item.id,
           title: item.name,
           year: item.first_air_date ? new Date(item.first_air_date).getFullYear() : "N/A",
-          type: "TV Show",
-          poster_path: item.poster_path
+          type: "TV Show" as const,
+          poster_path: item.poster_path,
         }));
       }
 
-      setResults(items);
-
-      // Fetch ratings for each item in background
-      items.forEach(async (item) => {
-        try {
-          const ratingsUrl = new URL("/api/media", window.location.origin);
-          ratingsUrl.searchParams.set("action", "ratings");
-          ratingsUrl.searchParams.set("type", type);
-          ratingsUrl.searchParams.set("id", item.id.toString());
-          
-          const ratingsRes = await fetch(ratingsUrl.toString());
-          if (ratingsRes.ok) {
-            const ratings = await ratingsRes.json() as ExternalRating[];
-            setResults(prev => prev.map(p => p.id === item.id ? { ...p, ratings } : p));
-          }
-        } catch (err) {
-          console.error("Failed to fetch ratings for", item.title, err);
-        }
-      });
-
+      setResults(prev => append ? [...prev, ...newItems] : newItems);
+      fetchRatings(newItems);
     } catch (err) {
       setError("An error occurred while fetching media.");
       console.error(err);
     } finally {
-      setIsLoading(false);
+      append ? setIsLoadingMore(false) : setIsLoading(false);
     }
-  }, [type]);
-
+  }, [type, fetchRatings]);
 
   useEffect(() => {
+    setPage(1);
     const timer = setTimeout(() => {
-      fetchMedia(query);
+      fetchMedia(query, 1, false);
     }, 500);
-
     return () => clearTimeout(timer);
   }, [query, fetchMedia]);
+
+  const handleLoadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchMedia(query, nextPage, true);
+  };
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -186,11 +190,19 @@ export function MediaSearch({ type, onAddToMyList, isInMyList }: MediaSearchProp
         )}
       </div>
 
-      {!isLoading && results.length === 0 ? (
+      {!isLoading && results.length === 0 && (
         <p className="mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
           No matches found for your search.
         </p>
-      ) : null}
+      )}
+
+      {!isLoading && results.length > 0 && page < totalPages && (
+        <div className="mt-4 flex justify-center">
+          <Button variant="outline" onClick={handleLoadMore} disabled={isLoadingMore}>
+            {isLoadingMore ? <Spinner className="h-4 w-4" /> : "Load more"}
+          </Button>
+        </div>
+      )}
     </section>
   );
 }
