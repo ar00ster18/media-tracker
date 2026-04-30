@@ -7,6 +7,7 @@ import { MediaItem } from "@/components/MediaSearch";
 
 type WatchStatus = "plan-to-watch" | "watching" | "watched";
 type FilterStatus = "all" | WatchStatus;
+type FilterType = "all" | "Movie" | "TV Show";
 type SortOption = "recent" | "a-z" | "z-a";
 
 export type ListItem = MediaItem & {
@@ -35,6 +36,12 @@ interface WatchlistAsideProps {
   type: "Movie" | "TV Show";
 }
 
+const TYPE_OPTIONS: { value: FilterType; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "Movie", label: "Movies" },
+  { value: "TV Show", label: "TV Shows" },
+];
+
 const FILTER_OPTIONS: { value: FilterStatus; label: string }[] = [
   { value: "all", label: "All" },
   { value: "plan-to-watch", label: "Plan to Watch" },
@@ -49,15 +56,18 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 ];
 
 export function WatchlistAside({ myList, setMyList, isInitialLoading, type }: WatchlistAsideProps) {
+  const [typeFilter, setTypeFilter] = useState<FilterType>("all");
   const [filter, setFilter] = useState<FilterStatus>("all");
   const [sort, setSort] = useState<SortOption>("recent");
 
   const displayedList = useMemo(() => {
-    let list = filter === "all" ? myList : myList.filter(item => item.status === filter);
+    let list = myList;
+    if (typeFilter !== "all") list = list.filter(item => item.type === typeFilter);
+    if (filter !== "all") list = list.filter(item => item.status === filter);
     if (sort === "a-z") list = [...list].sort((a, b) => a.title.localeCompare(b.title));
     if (sort === "z-a") list = [...list].sort((a, b) => b.title.localeCompare(a.title));
     return list;
-  }, [myList, filter, sort]);
+  }, [myList, typeFilter, filter, sort]);
   const syncWithDatabase = async (item: ListItem) => {
     try {
       await fetch("/api/watchlist", {
@@ -121,6 +131,21 @@ export function WatchlistAside({ myList, setMyList, isInitialLoading, type }: Wa
 
       {!isInitialLoading && myList.length > 0 && (
         <div className="mt-4 space-y-3">
+          <div className="flex flex-wrap gap-1.5">
+            {TYPE_OPTIONS.map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => setTypeFilter(value)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                  typeFilter === value
+                    ? "bg-slate-900 text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <div className="flex flex-wrap gap-1.5">
             {FILTER_OPTIONS.map(({ value, label }) => (
               <button
