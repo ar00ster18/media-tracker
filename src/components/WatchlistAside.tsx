@@ -110,13 +110,14 @@ export function WatchlistAside({ myList, setMyList, isInitialLoading, type }: Wa
   };
 
   const removeFromList = async (itemId: number) => {
-    setMyList((currentList) => currentList.filter((item) => item.id !== itemId));
     try {
-      await fetch("/api/watchlist", {
+      const res = await fetch("/api/watchlist", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mediaId: itemId })
       });
+      if (!res.ok) throw new Error(`DELETE failed: ${res.status}`);
+      setMyList((currentList) => currentList.filter((item) => item.id !== itemId));
     } catch (error) {
       console.error("Failed to remove item:", error);
     }
